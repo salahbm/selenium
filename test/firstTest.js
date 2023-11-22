@@ -3,55 +3,11 @@ const fs = require('fs');
 const enquirer = require('enquirer');
 const { assert } = require('chai');
 require('dotenv').config();
-const Tesseract = require('tesseract.js');
 const copyPaste = require('copy-paste');
-
+const path = require('path');
 // sleep
 const sleep = (milliseconds) => new Promise(resolve => setTimeout(resolve, milliseconds));
 
-async function solveCaptcha(driver) {
-  const captchaImage = await driver.findElement(By.id('captchaimg')); 
-
-  const imageData = await captchaImage.takeScreenshot(true);
-  const file = 'screenshot.png';
-  fs.writeFileSync(file, imageData, 'base64');
-  
-  // Perform OCR on the image data
-  const { data: { text } } = await Tesseract.recognize(
-    Buffer.from(imageData, 'base64'),
-    'kor',
-    { logger: info =>info } 
-  );
-
-  // Insert the answer into the input field
-  const questionElement = await driver.findElement(By.className('captcha_message'));
-  const questionText = await questionElement.getText();
-  // const answerInput = await driver.findElement(By.id('captcha'));
-  // Implement your logic to extract the answer from the text obtained from OCR
-  // const answer = extractAnswerFromText(text);
-
-  // Insert the answer into the input field
-  // await answerInput.sendKeys(answer);
-
-}
-
-function extractAnswerFromText(text) {
-  // Implement your logic to extract the answer from the OCR result (text)
-  // This could involve parsing the text, using regular expressions, or other methods
-  // Replace the following line with your actual logic
-  // return text.trim().toUpperCase(); 
-}
-
-
-async function loginNaver(driver, email, password) {
-  await driver.get('https://nid.naver.com/nidlogin.login?mode=form&url=https://www.naver.com/');
-  await driver.findElement(By.id('id')).sendKeys(email);
-  await driver.findElement(By.id('pw')).sendKeys(password);
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  await driver.findElement(By.className('btn_text')).click();
-  await solveCaptcha(driver)
-  // await driver.wait(until.urlIs('https://www.naver.com/'), 50000);
-}
 async function loginToNaver(driver) {
   await driver.get('https://nid.naver.com/nidlogin.login?mode=form&url=https%3A%2F%2Fwww.naver.com');
 
@@ -78,25 +34,61 @@ async function loginToNaver(driver) {
       await sleep(500)
 
       await driver.findElement(By.className('btn_text')).click();
-      await driver.wait(until.urlIs('https://www.naver.com/'), 50000);
-      
+      const currentUrl = await driver.getCurrentUrl();
+
+      if (currentUrl === 'https://www.naver.com/') {
+        break;
+      }
     } catch (error) {
       console.error('No such element:', error.message);
     }
   }
 }
+async function readAndCopyFileToClipboard(filePath) {
+  console.log(`file: firstTest.js:48 ~ filePath:`, filePath)
+  
+  try {
+    const fileExtension = path.extname(filePath).toLowerCase();
+    let fileContent;
+
+    if (fileExtension === '.png' || fileExtension === '.jpg' || fileExtension === '.jpeg') {
+      // For image files, read and convert to base64
+      fileContent = fs.readFileSync(filePath, 'base64');
+    
+    } else {
+      // For other files, read as binary and convert to utf-8
+      fileContent = fs.readFileSync(filePath, 'binary');
+      fileContent = Buffer.from(fileContent, 'binary').toString('utf-8');
+     
+    }
+
+    copyPaste.copy(fileContent, () => {
+      console.log(`File content copied to the clipboard:\n`);
+    });
+  } catch (error) {
+    console.error(`Error reading or copying file content: ${error.message}`);
+  }
+}
+
 
 async function createBlog(driver, imageFilePath, txtFilePath) {
   await driver.get('https://blog.naver.com/salah_bm?Redirect=Write');
-  const imageInput = await driver.findElement(By.name('image'));
-  await imageInput.sendKeys(imageFilePath);
+  assert.isTrue(await driver.wait(until.urlIs('https://blog.naver.com/salah_bm?Redirect=Write'), 5000), 'Navigation successful');
+await sleep(5000)
+  // copy paste img
+  readAndCopyFileToClipboard(imageFilePath);
+// await driver.findElement(By.id('SE-8dd74105-464c-4435-bf87-2f111973e845')).sendKeys(Key.CONTROL+ 'v');
 
-  const txtInput = await driver.findElement(By.name('txtContent'));
-  await txtInput.sendKeys(await fs.promises.readFile(txtFilePath, 'utf-8'));
+await sleep(5000)
+  // copy paste Tittle
+  readAndCopyFileToClipboard(txtFilePath);
+//  await driver.findElement(By.id("SE-99fca971-63d2-4268-ba69-1c15c0e4b2cc")).sendKeys(Key.CONTROL+ 'v');
+
 
   // Add more steps as needed
 
-  await driver.findElement(By.css('.button_blog')).click();
+  // await driver.findElement(By.className('publish_btn__Y5mLP')).click();
+  // await driver.findElement(By.className('confirm_btn__Dv9du')).click();
 }
 
 async function getUserInput() {
@@ -109,7 +101,7 @@ async function getUserInput() {
 }
 
 describe("Automated Blogging on Naver", function() {
-  this.timeout(3000000); // Adjust the timeout as needed
+  this.timeout(300000); // Adjust the timeout as needed
 
   let driver;
 
@@ -128,14 +120,17 @@ describe("Automated Blogging on Naver", function() {
       // Step 1: Login to Naver
       console.log('Step 1: Login to Naver');
       await loginToNaver(driver);
-      // assert.isTrue(await driver.wait(until.urlIs('https://www.naver.com/'), 5000), 'Login successful');
+      assert.isTrue(await driver.wait(until.urlIs('https://www.naver.com/'), 5000), 'Login successful');
 
       // Step 2: Create a blog and post content
-      // console.log('Step 2: Create a blog and post content');
-      // await createBlog(driver, userInput.imageFilePath, userInput.txtFilePath);
-      // const successMessageElement = await driver.wait(until.elementLocated(By.css('.blog-post-success-message')), 10000);
-      // await driver.wait(until.elementIsVisible(successMessageElement), 10000);
-      // assert.isTrue(await successMessageElement.isDisplayed(), 'Blog creation successful');
+
+      console.log('Step 2: Create a blog and post content');
+      const img = `\Tez-Yoz.png`
+      const txt = `\title.txt`
+      await createBlog(driver, img, txt);
+
+      const actualUrl = await driver.getCurrentUrl();
+      // assert.isTrue(actualUrl.startsWith('https://blog.naver.com/salah_bm/'), 'Unexpected blog URL');
 
       console.log('Test completed successfully');
     } catch (error) {
@@ -143,7 +138,7 @@ describe("Automated Blogging on Naver", function() {
       assert.fail('Test failed: ' + error.message);
     } finally {
       if (driver) {
-        // await driver.quit();
+        await driver.quit();
         console.log('WebDriver quit');
       }
     }
@@ -153,4 +148,41 @@ describe("Automated Blogging on Naver", function() {
 
 // C:\Users\salah\Downloads\Tez-Yoz.png
 
-// this is selenium blog sample
+// C:\Users\salah\Downloads\text.txt
+
+
+
+
+
+// async function solveCaptcha(driver) {
+//   const captchaImage = await driver.findElement(By.id('captchaimg')); 
+
+//   const imageData = await captchaImage.takeScreenshot(true);
+//   const file = 'screenshot.png';
+//   fs.writeFileSync(file, imageData, 'base64');
+  
+//   // Perform OCR on the image data
+//   const { data: { text } } = await Tesseract.recognize(
+//     Buffer.from(imageData, 'base64'),
+//     'kor',
+//     { logger: info =>info } 
+//   );
+
+//   // Insert the answer into the input field
+//   const questionElement = await driver.findElement(By.className('captcha_message'));
+//   const questionText = await questionElement.getText();
+//   // const answerInput = await driver.findElement(By.id('captcha'));
+//   // Implement your logic to extract the answer from the text obtained from OCR
+//   // const answer = extractAnswerFromText(text);
+
+//   // Insert the answer into the input field
+//   // await answerInput.sendKeys(answer);
+
+// }
+
+// function extractAnswerFromText(text) {
+//   // Implement your logic to extract the answer from the OCR result (text)
+//   // This could involve parsing the text, using regular expressions, or other methods
+//   // Replace the following line with your actual logic
+//   // return text.trim().toUpperCase(); 
+// }
