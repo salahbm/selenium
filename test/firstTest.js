@@ -1,4 +1,4 @@
-const { Builder, By, until ,Key} = require('selenium-webdriver');
+const { Builder, By, until, Key } = require('selenium-webdriver');
 const fs = require('fs');
 const enquirer = require('enquirer');
 const { assert } = require('chai');
@@ -13,24 +13,22 @@ async function loginToNaver(driver) {
 
   while (true) {
     try {
-
       await sleep(1000);
 
-      const nid =  process.env.MY_NAVER_USERNAME
-      const npw =  process.env.MY_NAVER_PASSWORD;
+      const nid = process.env.MY_NAVER_USERNAME;
+      const npw = process.env.MY_NAVER_PASSWORD;
 
       if (!nid || !npw) {
         console.error('Missing Naver credentials.');
         assert.fail('Missing Naver credentials');
       }
 
-      copyPaste.copy(nid, () => {console.log(`file: firstTest.js:60 ~ nid:`, nid)});
-      await driver.findElement(By.id('id')).sendKeys(Key.CONTROL+ 'v');
-      await sleep(5000);
-      
+      copyPaste.copy(nid, () => {  });
+      await driver.findElement(By.id('id')).sendKeys(Key.CONTROL + 'v');
+      await sleep(1000);
 
-      copyPaste.copy(npw, () => {console.log(`file: firstTest.js:60 ~ nid:`, npw)});
-      await driver.findElement(By.id('pw')).sendKeys(Key.CONTROL+ 'v');
+      copyPaste.copy(npw, () => {  });
+      await driver.findElement(By.id('pw')).sendKeys(Key.CONTROL + 'v');
       await sleep(500)
 
       await driver.findElement(By.className('btn_text')).click();
@@ -44,9 +42,12 @@ async function loginToNaver(driver) {
     }
   }
 }
+
+let copiedText;
+
 async function readAndCopyFileToClipboard(filePath) {
-  console.log(`file: firstTest.js:48 ~ filePath:`, filePath)
-  
+  console.log(`file: firstTest.js:48 ~ filePath:`, filePath);
+
   try {
     const fileExtension = path.extname(filePath).toLowerCase();
     let fileContent;
@@ -54,68 +55,83 @@ async function readAndCopyFileToClipboard(filePath) {
     if (fileExtension === '.png' || fileExtension === '.jpg' || fileExtension === '.jpeg') {
       // For image files, read and convert to base64
       fileContent = fs.readFileSync(filePath, 'base64');
-    
     } else {
       // For other files, read as binary and convert to utf-8
       fileContent = fs.readFileSync(filePath, 'binary');
       fileContent = Buffer.from(fileContent, 'binary').toString('utf-8');
-     
     }
 
-    copyPaste.copy(fileContent, () => {
-      console.log(`File content copied to the clipboard:\n`);
+    copyPaste.copy(fileContent, (err, text) => {
+      if (err) {
+        console.error(`Error copying file content: ${err.message}`);
+        return;
+      }
+      copiedText = text;
+      console.log(`File content copied to the clipboard:\n${copiedText}`);
     });
   } catch (error) {
     console.error(`Error reading or copying file content: ${error.message}`);
   }
 }
 
+async function clickCancelButton(driver) {
+  try {
+    const cancelButton = await driver.findElement(By.css('.se-popup-button.se-popup-button-cancel'));
+
+
+    if (cancelButton) {
+      await cancelButton.click();
+    } else {
+      console.log('Cancel button is not displayed.');
+    }
+  } catch (error) {
+    
+    console.error('Error handling pop-up:', error.message);
+
+  }
+}
+
+
+
 
 async function createBlog(driver, imageFilePath, txtFilePath) {
   await driver.get('https://blog.naver.com/salah_bm?Redirect=Write');
-  assert.isTrue(await driver.wait(until.urlIs('https://blog.naver.com/salah_bm?Redirect=Write'), 5000), 'Navigation successful');
-await sleep(5000)
-  // copy paste img
-  readAndCopyFileToClipboard(imageFilePath);
-// await driver.findElement(By.id('SE-8dd74105-464c-4435-bf87-2f111973e845')).sendKeys(Key.CONTROL+ 'v');
 
-await sleep(5000)
-  // copy paste Tittle
-  readAndCopyFileToClipboard(txtFilePath);
-//  await driver.findElement(By.id("SE-99fca971-63d2-4268-ba69-1c15c0e4b2cc")).sendKeys(Key.CONTROL+ 'v');
+ await  clickCancelButton(driver)
+ await sleep(5000);
 
+  try {
+    // Wait for the text element to be present
+    const textElement = await driver.findElementBy.xpath('//span[@id="SE-85f5eb87-2476-4063-a939-cf4fbc416b74"]')
 
-  // Add more steps as needed
+    // Copy and paste text
+    readAndCopyFileToClipboard(txtFilePath);
+    await textElement.sendKeys(Key.CONTROL + 'v');
 
-  // await driver.findElement(By.className('publish_btn__Y5mLP')).click();
-  // await driver.findElement(By.className('confirm_btn__Dv9du')).click();
+    await sleep(3000);
+
+    // Copy and paste image
+    readAndCopyFileToClipboard(imageFilePath);
+    await driver.findElement(By.id("SE-af6f8c9f-5008-4e1b-8fa1-e539b51232d6")).sendKeys(Key.CONTROL + 'v');
+
+    await sleep(2000);
+    await driver.findElement(By.className('publish_btn__Y5mLP')).click();
+    await driver.findElement(By.className('confirm_btn__Dv9du')).click();
+  } catch (error) {
+    console.log('Error creating blog:', error.message);
+  }
 }
 
-async function getUserInput() {
-  const questions = [
-    { type: 'input', name: 'imageFilePath', message: 'Enter the path to your image file:' },
-    { type: 'input', name: 'txtFilePath', message: 'Enter the path to your text file:' },
-  ];
 
-  return await enquirer.prompt(questions);
-}
-
-describe("Automated Blogging on Naver", function() {
-  this.timeout(300000); // Adjust the timeout as needed
+describe("Automated Blogging on Naver", function () {
+  this.timeout(300000);
 
   let driver;
-
 
   it("Should login to Naver, create a blog, and post content", async function () {
     try {
       driver = await new Builder().forBrowser('MicrosoftEdge').build();
       console.log('WebDriver initialized successfully');
-
-      // Get user input
-      // const userInput = await getUserInput();
-      // console.log('User input:', userInput);
-
-
 
       // Step 1: Login to Naver
       console.log('Step 1: Login to Naver');
@@ -123,13 +139,13 @@ describe("Automated Blogging on Naver", function() {
       assert.isTrue(await driver.wait(until.urlIs('https://www.naver.com/'), 5000), 'Login successful');
 
       // Step 2: Create a blog and post content
-
       console.log('Step 2: Create a blog and post content');
-      const img = `\Tez-Yoz.png`
-      const txt = `\title.txt`
+      const img = `Tez-Yoz.png`
+      const txt = 'C:\\Users\\salah\\Documents\\reactjs\\selenium\\title.txt';
+
       await createBlog(driver, img, txt);
 
-      const actualUrl = await driver.getCurrentUrl();
+      // const actualUrl = await driver.getCurrentUrl();
       // assert.isTrue(actualUrl.startsWith('https://blog.naver.com/salah_bm/'), 'Unexpected blog URL');
 
       console.log('Test completed successfully');
