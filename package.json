@@ -12,6 +12,7 @@
     "-": "^0.0.1",
     "axios": "^1.6.2",
     "chai": "^4.3.10",
+    "copy-paste": "^1.5.3",
     "dotenv": "^16.3.1",
     "enquirer": "^2.4.1",
     "selenium-webdriver": "^4.15.0",

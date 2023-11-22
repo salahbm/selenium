@@ -1,9 +1,13 @@
-const { Builder, By, until } = require('selenium-webdriver');
+const { Builder, By, until ,Key} = require('selenium-webdriver');
 const fs = require('fs');
 const enquirer = require('enquirer');
 const { assert } = require('chai');
 require('dotenv').config();
 const Tesseract = require('tesseract.js');
+const copyPaste = require('copy-paste');
+
+// sleep
+const sleep = (milliseconds) => new Promise(resolve => setTimeout(resolve, milliseconds));
 
 async function solveCaptcha(driver) {
   const captchaImage = await driver.findElement(By.id('captchaimg')); 
@@ -22,9 +26,6 @@ async function solveCaptcha(driver) {
   // Insert the answer into the input field
   const questionElement = await driver.findElement(By.className('captcha_message'));
   const questionText = await questionElement.getText();
-  console.log('====================================');
-  console.log(questionText);
-  console.log('====================================');
   // const answerInput = await driver.findElement(By.id('captcha'));
   // Implement your logic to extract the answer from the text obtained from OCR
   // const answer = extractAnswerFromText(text);
@@ -46,9 +47,43 @@ async function loginNaver(driver, email, password) {
   await driver.get('https://nid.naver.com/nidlogin.login?mode=form&url=https://www.naver.com/');
   await driver.findElement(By.id('id')).sendKeys(email);
   await driver.findElement(By.id('pw')).sendKeys(password);
+  await new Promise(resolve => setTimeout(resolve, 2000));
   await driver.findElement(By.className('btn_text')).click();
   await solveCaptcha(driver)
   // await driver.wait(until.urlIs('https://www.naver.com/'), 50000);
+}
+async function loginToNaver(driver) {
+  await driver.get('https://nid.naver.com/nidlogin.login?mode=form&url=https%3A%2F%2Fwww.naver.com');
+
+  while (true) {
+    try {
+
+      await sleep(1000);
+
+      const nid =  process.env.MY_NAVER_USERNAME
+      const npw =  process.env.MY_NAVER_PASSWORD;
+
+      if (!nid || !npw) {
+        console.error('Missing Naver credentials.');
+        assert.fail('Missing Naver credentials');
+      }
+
+      copyPaste.copy(nid, () => {console.log(`file: firstTest.js:60 ~ nid:`, nid)});
+      await driver.findElement(By.id('id')).sendKeys(Key.CONTROL+ 'v');
+      await sleep(5000);
+      
+
+      copyPaste.copy(npw, () => {console.log(`file: firstTest.js:60 ~ nid:`, npw)});
+      await driver.findElement(By.id('pw')).sendKeys(Key.CONTROL+ 'v');
+      await sleep(500)
+
+      await driver.findElement(By.className('btn_text')).click();
+      await driver.wait(until.urlIs('https://www.naver.com/'), 50000);
+      
+    } catch (error) {
+      console.error('No such element:', error.message);
+    }
+  }
 }
 
 async function createBlog(driver, imageFilePath, txtFilePath) {
@@ -85,20 +120,14 @@ describe("Automated Blogging on Naver", function() {
       console.log('WebDriver initialized successfully');
 
       // Get user input
-      const userInput = await getUserInput();
-      console.log('User input:', userInput);
+      // const userInput = await getUserInput();
+      // console.log('User input:', userInput);
 
-      // Check for required environment variables
-      const email = process.env.MY_NAVER_USERNAME
-      const password = process.env.MY_NAVER_PASSWORD 
-      if (!email || !password) {
-        console.error('Missing Naver credentials.');
-        assert.fail('Missing Naver credentials');
-      }
+
 
       // Step 1: Login to Naver
       console.log('Step 1: Login to Naver');
-      await loginNaver(driver, email, password);
+      await loginToNaver(driver);
       // assert.isTrue(await driver.wait(until.urlIs('https://www.naver.com/'), 5000), 'Login successful');
 
       // Step 2: Create a blog and post content
