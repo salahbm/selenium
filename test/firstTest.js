@@ -95,18 +95,19 @@ async function clickCancelButton(driver) {
 
 
 async function createBlog(driver, imageFilePath, txtFilePath) {
-  await driver.get('https://blog.naver.com/salah_bm?Redirect=Write');
+  await driver.wait(until.urlIs('https://blog.naver.com/salah_bm?Redirect=Write'),5000);
 
  await  clickCancelButton(driver)
  await sleep(5000);
 
   try {
     // Wait for the text element to be present
-    const textElement = await driver.findElementBy.xpath('//span[@id="SE-85f5eb87-2476-4063-a939-cf4fbc416b74"]')
+    const textElement = await driver.findElement(By.xpath('//span[@id="SE-b8b40299-b59f-44ef-b889-5098c9fd95a7"]'));
 
     // Copy and paste text
     readAndCopyFileToClipboard(txtFilePath);
     await textElement.sendKeys(Key.CONTROL + 'v');
+    
 
     await sleep(3000);
 
