@@ -5,7 +5,7 @@ const { assert } = require('chai');
 require('dotenv').config();
 const copyPaste = require('copy-paste');
 const path = require('path');
-// sleep
+
 const sleep = (milliseconds) => new Promise(resolve => setTimeout(resolve, milliseconds));
 
 async function loginToNaver(driver) {
@@ -23,13 +23,13 @@ async function loginToNaver(driver) {
         assert.fail('Missing Naver credentials');
       }
 
-      copyPaste.copy(nid, () => {  });
+      copyPaste.copy(nid, () => {});
       await driver.findElement(By.id('id')).sendKeys(Key.CONTROL + 'v');
       await sleep(1000);
 
-      copyPaste.copy(npw, () => {  });
+      copyPaste.copy(npw, () => {});
       await driver.findElement(By.id('pw')).sendKeys(Key.CONTROL + 'v');
-      await sleep(500)
+      await sleep(500);
 
       await driver.findElement(By.className('btn_text')).click();
       const currentUrl = await driver.getCurrentUrl();
@@ -46,17 +46,13 @@ async function loginToNaver(driver) {
 let copiedText;
 
 async function readAndCopyFileToClipboard(filePath) {
-  console.log(`file: firstTest.js:48 ~ filePath:`, filePath);
-
   try {
     const fileExtension = path.extname(filePath).toLowerCase();
     let fileContent;
 
     if (fileExtension === '.png' || fileExtension === '.jpg' || fileExtension === '.jpeg') {
-      // For image files, read and convert to base64
       fileContent = fs.readFileSync(filePath, 'base64');
     } else {
-      // For other files, read as binary and convert to utf-8
       fileContent = fs.readFileSync(filePath, 'binary');
       fileContent = Buffer.from(fileContent, 'binary').toString('utf-8');
     }
@@ -67,7 +63,6 @@ async function readAndCopyFileToClipboard(filePath) {
         return;
       }
       copiedText = text;
-      console.log(`File content copied to the clipboard:\n${copiedText}`);
     });
   } catch (error) {
     console.error(`Error reading or copying file content: ${error.message}`);
@@ -78,46 +73,133 @@ async function clickCancelButton(driver) {
   try {
     const cancelButton = await driver.findElement(By.css('.se-popup-button.se-popup-button-cancel'));
 
-
     if (cancelButton) {
       await cancelButton.click();
     } else {
       console.log('Cancel button is not displayed.');
     }
   } catch (error) {
-    
     console.error('Error handling pop-up:', error.message);
-
   }
 }
 
-
-
-
-async function createBlog(driver, imageFilePath, txtFilePath) {
-  await driver.wait(until.urlIs('https://blog.naver.com/salah_bm?Redirect=Write'),5000);
-
- await  clickCancelButton(driver)
- await sleep(5000);
-
+async function createBlog(driver) {
   try {
-    // Wait for the text element to be present
-    const textElement = await driver.findElement(By.xpath('//span[@id="SE-b8b40299-b59f-44ef-b889-5098c9fd95a7"]'));
+    // Clicking on "Do not register"
+    try {
+      await driver.findElement(By.xpath('//*[@id="new.dontsave"]')).click();
+    } catch (error) {
+      // NoSuchElementException
+      console.log('no element found', error.message);
+    }
 
-    // Copy and paste text
-    readAndCopyFileToClipboard(txtFilePath);
-    await textElement.sendKeys(Key.CONTROL + 'v');
+    await driver.sleep(1000);
+
+
+    // Navigating to Naver Post
+    const url = 'https://post.naver.com';
+    await driver.get(url);
+    await driver.sleep(2000);
+
+    // Clicking on the "Write Post" button
+    const postBtn = await driver.findElement(By.xpath('//*[@id="header"]/div[1]/a[3]'));
+    await postBtn.click();
+    await driver.sleep(3000);
+
+    const txtFilePath = 'C:\\Users\\salah\\Documents\\reactjs\\selenium\\title.txt';
+    const lines = fs.readFileSync(txtFilePath, 'utf-8').split('\n');
+    const header = lines[0].split(',');
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',');
+      const post = {};
+
+      for (let j = 0; j < header.length; j++) {
+        post[header[j]] = values[j];
+      }
+
+      const titleDirectory = post['title_2'];
+      const imgFileDirectory = post['img_directory'];
+      const txtFileDirectory = post['txt_directory'];
+
     
 
-    await sleep(3000);
+      const contentList = fs.readFileSync(txtFileDirectory, 'utf-8').split('\n');
+      const bloggerTitle = titleDirectory;
+      const bloggerTitle2 = bloggerTitle.replace("\ufeff", "");
 
-    // Copy and paste image
-    readAndCopyFileToClipboard(imageFilePath);
-    await driver.findElement(By.id("SE-af6f8c9f-5008-4e1b-8fa1-e539b51232d6")).sendKeys(Key.CONTROL + 'v');
+      const contentDesc = fs.readFileSync(txtFileDirectory, 'utf-8');
+      const tistoryTitle = String(bloggerTitle2);
 
-    await sleep(2000);
-    await driver.findElement(By.className('publish_btn__Y5mLP')).click();
-    await driver.findElement(By.className('confirm_btn__Dv9du')).click();
+      // Naver Post Title Entry
+      const iframes = await driver.findElements(By.tagName('iframe'));
+      await driver.switchTo().frame(iframes[0]);
+
+      const tagTitle = await driver.findElement(By.xpath("//textarea[@placeholder='제목']"));
+      await tagTitle.click();
+      await driver.sleep(1000);
+      const title = String(tistoryTitle);
+      await driver.sleep(1000);
+      await driver.actions().sendKeys(title).perform();
+      await driver.actions().sendKeys(Key.NULL).perform();
+      await driver.sleep(1000);
+
+      // Content Entry
+      const tagContent = await driver.findElement(By.xpath("//div[@class='se_editView']"));
+      await tagContent.click();
+      await driver.sleep(1000);
+
+      // Introduction
+      const content1 = String(contentList[0]);
+      await driver.actions().sendKeys(content1).perform();
+      await driver.sleep(1000);
+
+      // Body
+      for (let j = 1; j < contentList.length - 1; j++) {
+        const content2 = String(contentList[j]);
+        await driver.actions().sendKeys(content2).perform();
+        await driver.sleep(1000);
+      }
+
+      // Adding image
+      if (imgFileDirectory !== 'no_image') {
+        // Adding image
+        const tagAddImg = await driver.findElement(By.xpath("//button[@class='se-2d62a39d se-ff2750f7 se-l-icon-plus']"));
+        await tagAddImg.click();
+        await driver.sleep(1000);
+
+        // Switching to the image upload iframe
+        const iframes = await driver.findElements(By.tagName('iframe'));
+        await driver.switchTo().frame(iframes[2]);
+        await driver.sleep(1000);
+
+        // Uploading the image
+        const tagFileUpload = await driver.findElement(By.xpath("//input[@type='file']"));
+        await tagFileUpload.sendKeys(imgFileDirectory);
+        await driver.sleep(1000);
+
+        // Waiting for the image to upload
+        await driver.sleep(5000);
+
+        // Switching back to the main iframe
+        await driver.switchTo().defaultContent();
+        await driver.sleep(1000);
+      }
+
+      // Posting
+      const tagPostBtn = await driver.findElement(By.xpath("//button[@class='se-3e1641a2 se-ff2750f7 se-ff2750f7-primary-large']"));
+      await tagPostBtn.click();
+      await driver.sleep(5000);
+
+      // Writing to the Excel file (if needed)
+      // healthNaverPosting[i]['naver_posting'] = 'O';
+
+      // Waiting before moving on to the next post
+      await driver.sleep(2000);
+    }
+
+    // Switch back to the default content
+    await driver.switchTo().defaultContent();
   } catch (error) {
     console.log('Error creating blog:', error.message);
   }
@@ -126,32 +208,21 @@ async function createBlog(driver, imageFilePath, txtFilePath) {
 
 describe("Automated Blogging on Naver", function () {
   this.timeout(300000);
-
   let driver;
 
   it("Should login to Naver, create a blog, and post content", async function () {
     try {
       driver = await new Builder().forBrowser('MicrosoftEdge').build();
-      console.log('WebDriver initialized successfully');
-
-      // Step 1: Login to Naver
-      console.log('Step 1: Login to Naver');
       await loginToNaver(driver);
       assert.isTrue(await driver.wait(until.urlIs('https://www.naver.com/'), 5000), 'Login successful');
 
-      // Step 2: Create a blog and post content
-      console.log('Step 2: Create a blog and post content');
       const img = `Tez-Yoz.png`
       const txt = 'C:\\Users\\salah\\Documents\\reactjs\\selenium\\title.txt';
 
       await createBlog(driver, img, txt);
 
-      // const actualUrl = await driver.getCurrentUrl();
-      // assert.isTrue(actualUrl.startsWith('https://blog.naver.com/salah_bm/'), 'Unexpected blog URL');
-
       console.log('Test completed successfully');
     } catch (error) {
-      console.error('Test failed:', error);
       assert.fail('Test failed: ' + error.message);
     } finally {
       if (driver) {
@@ -161,45 +232,3 @@ describe("Automated Blogging on Naver", function () {
     }
   });
 });
-
-
-// C:\Users\salah\Downloads\Tez-Yoz.png
-
-// C:\Users\salah\Downloads\text.txt
-
-
-
-
-
-// async function solveCaptcha(driver) {
-//   const captchaImage = await driver.findElement(By.id('captchaimg')); 
-
-//   const imageData = await captchaImage.takeScreenshot(true);
-//   const file = 'screenshot.png';
-//   fs.writeFileSync(file, imageData, 'base64');
-  
-//   // Perform OCR on the image data
-//   const { data: { text } } = await Tesseract.recognize(
-//     Buffer.from(imageData, 'base64'),
-//     'kor',
-//     { logger: info =>info } 
-//   );
-
-//   // Insert the answer into the input field
-//   const questionElement = await driver.findElement(By.className('captcha_message'));
-//   const questionText = await questionElement.getText();
-//   // const answerInput = await driver.findElement(By.id('captcha'));
-//   // Implement your logic to extract the answer from the text obtained from OCR
-//   // const answer = extractAnswerFromText(text);
-
-//   // Insert the answer into the input field
-//   // await answerInput.sendKeys(answer);
-
-// }
-
-// function extractAnswerFromText(text) {
-//   // Implement your logic to extract the answer from the OCR result (text)
-//   // This could involve parsing the text, using regular expressions, or other methods
-//   // Replace the following line with your actual logic
-//   // return text.trim().toUpperCase(); 
-// }
