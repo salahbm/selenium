@@ -105,22 +105,19 @@ async function createBlog(driver, title, body) {
     await sleep(1000);
 
 
-    const contentList =body
-    
-    // Replace 'path/to/your/image.jpg' with the actual path to your image file
-    
+
     try {
       // Content Entry
       const tagContent = await driver.findElement(By.xpath("//div[@class='se_editView']"));
       await tagContent.click();
-      await sleep(1000);
+
   
-      // Body
-      for (let j = 0; j < contentList.length ; j++) {
-        const content = String(contentList[j]);
-        await driver.actions().sendKeys(content,'\n~~~~~~~~\n').perform();
-        await sleep(100);
-      }
+
+
+      
+  await driver.actions().sendKeys(body)
+
+ 
       
       // Switching to the image upload iframe
       const iframes = await driver.findElements(By.tagName('iframe'));
@@ -150,10 +147,11 @@ async function createBlog(driver, title, body) {
 
 
 app.post('/submit', async (req, res) => {
-  const { title, body_1, username, pw } = req.body; 
+  const { title, body, username, pw } = req.body;
+
 
   let driver;console.log('====================================');
-  console.log(title, body_1);
+  console.log(title, body);
   console.log('====================================');
 
   try {
@@ -161,11 +159,12 @@ app.post('/submit', async (req, res) => {
     await loginToNaver(driver, username, pw);
     assert.isTrue(await driver.wait(until.urlIs('https://www.naver.com/'), 5000), 'Login successful');
 
-    await createBlog(driver, title, body_1);
+    await createBlog(driver, title, body);
   } catch (error) {
     console.error('Error:', error.message);
   } finally {
     if (driver) {
+      sleep(5000)
       await driver.quit();
     }
   }
