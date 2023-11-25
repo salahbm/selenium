@@ -121,6 +121,7 @@ async function createBlog(driver) {
       5000
     );
     await tagTitle.click();
+
     await sleep(1000);
     await driver.actions().sendKeys(headerContent).perform();
     await sleep(1000);
@@ -133,7 +134,7 @@ async function createBlog(driver) {
       "Conclusion: Wrapping up the blog post with a conclusion.",
     ];
     
-
+    // Replace 'path/to/your/image.jpg' with the actual path to your image file
     
     try {
       // Content Entry
@@ -141,54 +142,30 @@ async function createBlog(driver) {
       await tagContent.click();
       await sleep(1000);
   
-      // Introduction
-      const content1 = String(contentList[0]);
-      await driver.actions().sendKeys(content1).perform();
-      await sleep(1000);
-  
       // Body
       for (let j = 0; j < contentList.length ; j++) {
-        const content2 = String(contentList[j]);
-        await driver.actions().sendKeys(content2,'\n~~~~~~~~\n').perform();
+        const content = String(contentList[j]);
+        await driver.actions().sendKeys(content,'\n~~~~~~~~\n').perform();
         await sleep(100);
       }
-  
-
-      console.log(`file: firstTest.js:160 ~ imgFileDirectory:`, imgFile)
-      const tagAddImgButton = await driver.findElement(By.xpath('//ul[@id="se_side_comp_list"]//li[2]//button[contains(@class=se_component_image)]'));
-      await tagAddImgButton.click();
-      await sleep(1000);
-      
-      
-
       
       // Switching to the image upload iframe
       const iframes = await driver.findElements(By.tagName('iframe'));
       await driver.switchTo().frame(iframes[2]);
       await sleep(1000);
-      
-      // Find the file input element
-      const tagFileUpload = await driver.findElement(By.xpath("//input[@type='file']"));
-      
-      // Directly set the value of the file input element
-      await tagFileUpload.sendKeys(imgFile);
-      
-      // Wait for the image to upload
-      await sleep(5000);
+
       
       // Switching back to the main iframe
       await driver.switchTo().defaultContent();
       await sleep(1000);
   
       // Posting
-      const tagPostBtn = await driver.findElement(By.xpath("//button[@class='se-3e1641a2 se-ff2750f7 se-ff2750f7-primary-large']"));
-      await tagPostBtn.click();
-      await sleep(5000);
-  
-      // Write to the Excel file or perform other actions as needed
-  
-      // Waiting before moving on to the next post
-      await sleep(2000);
+      const openPostBtn = await driver.findElement(By.id('se_top_publish_btn'));
+      await openPostBtn.click();
+      await sleep(1000);
+      const postBtn = await driver.findElement(By.className('btn_publish'));
+      await postBtn.click();
+      await sleep(1000);
     } catch (error) {
       console.log('Error creating blog with image:', error.message);
     }
@@ -217,7 +194,7 @@ describe("Automated Blogging on Naver", function () {
       assert.fail('Test failed: ' + error.message);
     } finally {
       if (driver) {
-        // await driver.quit();
+        await driver.quit();
       }
     }
   });
