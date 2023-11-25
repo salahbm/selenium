@@ -1,22 +1,27 @@
-const { Builder, By, until, Key } = require('selenium-webdriver');
-const fs = require('fs');
-const enquirer = require('enquirer');
-const { assert } = require('chai');
-require('dotenv').config();
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
 const copyPaste = require('copy-paste');
-const path = require('path');
-const imgFile = path.resolve(__dirname, '../Tez-Yoz.png');
+const { Builder, By, until, Key } = require('selenium-webdriver');
+const { assert } = require('chai');
+
+const app = express();
+const port = 3001;
+
+app.use(cors());
+app.use(bodyParser.json());
+
 const sleep = (milliseconds) => new Promise(resolve => setTimeout(resolve, milliseconds));
 
-async function loginToNaver(driver) {
+async function loginToNaver(driver, username, pw) {
   await driver.get('https://nid.naver.com/nidlogin.login?mode=form&url=https%3A%2F%2Fwww.naver.com');
 
   while (true) {
     try {
       await sleep(1000);
 
-      const nid = process.env.MY_NAVER_USERNAME;
-      const npw = process.env.MY_NAVER_PASSWORD;
+      const nid = username;
+      const npw = pw;
 
       if (!nid || !npw) {
         console.error('Missing Naver credentials.');
@@ -43,35 +48,9 @@ async function loginToNaver(driver) {
   }
 }
 
-let copiedText;
-
-async function readAndCopyFileToClipboard(filePath) {
-  try {
-    const fileExtension = path.extname(filePath).toLowerCase();
-    let fileContent;
-
-    if (fileExtension === '.png' || fileExtension === '.jpg' || fileExtension === '.jpeg') {
-      fileContent = fs.readFileSync(filePath, 'base64');
-    } else {
-      fileContent = fs.readFileSync(filePath, 'binary');
-      fileContent = Buffer.from(fileContent, 'binary').toString('utf-8');
-    }
-
-    copyPaste.copy(fileContent, (err, text) => {
-      if (err) {
-        console.error(`Error copying file content: ${err.message}`);
-        return;
-      }
-      copiedText = text;
-    });
-  } catch (error) {
-    console.error(`Error reading or copying file content: ${error.message}`);
-  }
-}
 
 
-
-async function createBlog(driver) {
+async function createBlog(driver, title, body) {
   try {
     // Clicking on "Do not register"
     try {
@@ -110,8 +89,7 @@ async function createBlog(driver) {
     
 
     // Example header content
-    const headerContent = 'This is my first header by Selenium!!!';
-
+    const headerContent = title
     // Naver Post Title Entry
     const iFrames = await driver.findElements(By.tagName('iframe'));
     await driver.switchTo().frame(iFrames[0]);
@@ -127,12 +105,7 @@ async function createBlog(driver) {
     await sleep(1000);
 
 
-    const contentList = [
-      "Introduction: This is my blog post.",
-      "Body Paragraph 1: Here is some content for the first paragraph.",
-      "Body Paragraph 2: Adding more content to the second paragraph.",
-      "Conclusion: Wrapping up the blog post with a conclusion.",
-    ];
+    const contentList =body
     
     // Replace 'path/to/your/image.jpg' with the actual path to your image file
     
@@ -176,26 +149,30 @@ async function createBlog(driver) {
 
 
 
-describe("Automated Blogging on Naver", function () {
-  this.timeout(300000);
-  let driver;
+app.post('/submit', async (req, res) => {
+  const { title, body_1, username, pw } = req.body; 
 
-  it("Should login to Naver, create a blog, and post content", async function () {
-    try {
-      driver = await new Builder().forBrowser('MicrosoftEdge').build();
-      await loginToNaver(driver);
-      assert.isTrue(await driver.wait(until.urlIs('https://www.naver.com/'), 5000), 'Login successful');
+  let driver;console.log('====================================');
+  console.log(title, body_1);
+  console.log('====================================');
 
-      // const img = `Tez-Yoz.png`
-      // const txt = 'C:\\Users\\salah\\Documents\\reactjs\\selenium\\title.txt';
+  try {
+    driver = await new Builder().forBrowser('MicrosoftEdge').build();
+    await loginToNaver(driver, username, pw);
+    assert.isTrue(await driver.wait(until.urlIs('https://www.naver.com/'), 5000), 'Login successful');
 
-      await createBlog(driver);
-    } catch (error) {
-      assert.fail('Test failed: ' + error.message);
-    } finally {
-      if (driver) {
-        await driver.quit();
-      }
+    await createBlog(driver, title, body_1);
+  } catch (error) {
+    console.error('Error:', error.message);
+  } finally {
+    if (driver) {
+      await driver.quit();
     }
-  });
+  }
+
+  res.status(200).json({ message: 'Request processed successfully' });
+});
+
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });
